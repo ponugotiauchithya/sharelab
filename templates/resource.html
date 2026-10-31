@@ -1,0 +1,78 @@
+{% extends 'base.html' %}{% block title %}{{ r.name }}{% endblock %}
+{% from '_m.html' import badge, csrf_field, checklist with context %}
+{% block body %}
+<div class="row between top">
+  <div><span style="font-size:2.4rem" aria-hidden="true">{{ r.emoji }}</span>
+  <h1 style="display:inline">{{ r.name }}</h1>
+  <div class="muted">📍 {{ r.location }} · {{ r.category }} · listed by {{ owner.name }} ({{ owner.department }}){% if not r.active %} · <b>Listing paused</b>{% endif %}</div></div>
+  {% if manage %}<div class="row">
+    {% if me.id==r.owner_id or me.role=='admin' %}<a class="btn sec sm" href="{{ url_for('resource_edit', rid=r.id) }}">Edit conditions</a>
+    <form method="post" action="{{ url_for('resource_toggle', rid=r.id) }}">{{ csrf_field() }}<button class="btn sec sm">{{ 'Pause listing' if r.active else 'Reopen listing' }}</button></form>{% endif %}
+    <a class="btn sm" href="{{ url_for('manage') }}">Review queue</a></div>{% endif %}
+</div>
+<div class="grid g2" style="margin-top:14px">
+<div>
+  <div class="card"><h2 style="margin-top:0">About</h2><p>{{ r.description }}</p>
+    <h3>Usage rules</h3><p>{{ r.rules }}</p>
+    <h3>Conditions</h3>
+    <ul>
+      <li>{% if r.approval_mode=='auto' %}<b>Instant approval</b> when every check passes (owner-enabled; still logged and reversible by staff){% else %}<b>Manager reviews</b> every request{% endif %}</li>
+      {% if r.supervision %}<li><b>Staff supervision</b> required during use (never auto-approved)</li>{% endif %}
+      <li>Up to <b>{{ r.max_hours|num }} h</b> per session · fair-use cap <b>{{ r.weekly_cap_hours|num }} h per person per week</b> · max <b>{{ r.max_open }}</b> open bookings at a time</li>
+      <li>Bookable up to {{ r.advance_days }} days ahead</li>
+    </ul>
+    <h3>Opening hours</h3>
+    <p class="small">{% for w in windows %}<span class="tag">{{ DAYS[w.weekday] }} {{ '%02d'|format(w.start_hour) }}:00-{{ '%02d'|format(w.end_hour) }}:00</span>{% endfor %}</p>
+  </div>
+  <div class="card"><h2 style="margin-top:0">Next 7 days</h2>
+    <p class="legend small"><span class="free">Free</span><span class="pending">Requests pending</span><span class="held">Booked</span><span class="closed">Closed</span></p>
+    <div style="overflow-x:auto"><table class="cal" aria-label="Weekly availability"><thead><tr><th></th>{% for d, cells in grid %}<th>{{ d.strftime('%a') }}<br>{{ d.strftime('%d') }}</th>{% endfor %}</tr></thead><tbody>
+    {% for h in range(lo, hi) %}<tr><th scope="row">{{ '%02d'|format(h) }}</th>{% for d, cells in grid %}{% set st = cells[h-lo][1] %}<td class="{{ st }}" title="{{ st }}">{{ {'free':'free','held':'booked','pending':'req','closed':'-','past':''}[st] }}</td>{% endfor %}</tr>{% endfor %}
+    </tbody></table></div>
+    <p class="hint">Who booked is private; only the slot state is shown.</p>
+  </div>
+</div>
+<div>
+  <div class="card"><h2 style="margin-top:0">Can I use this?</h2>
+  {% if not me %}
+    <p>Required: {% for x in reqs %}<span class="tag">{{ x }}</span>{% else %}<span class="tag">No special training needed</span>{% endfor %}</p>
+    <p><a class="btn" href="{{ url_for('login', next=request.path) }}">Sign in to check your eligibility</a></p>
+  {% else %}
+    {{ checklist(elig) }}
+    {% if elig|selectattr('ok','equalto',false)|list %}<p class="small">Missing something? <a href="{{ url_for('credentials') }}">Submit a certificate or authorisation</a>. Staff who run this resource review it.</p>{% endif %}
+    {% if usage %}<p class="small muted">Your use of this resource this week: <b>{{ usage.week|num }} / {{ r.weekly_cap_hours|num }} h</b> · open bookings: <b>{{ usage.open }} / {{ r.max_open }}</b></p>
+      <div class="meter {{ 'full' if usage.week>=r.weekly_cap_hours }}"><i style="width:{{ [100, (usage.week/r.weekly_cap_hours*100)|round]|min }}%"></i></div>{% endif %}
+  {% endif %}
+  </div>
+  {% if me and r.active %}
+  <div class="card"><h2 style="margin-top:0">Request a booking</h2>
+  <form method="post" action="{{ url_for('book', rid=r.id) }}">{{ csrf_field() }}
+    <div class="grid g3">
+      <div><label for="date">Date</label><input id="date" type="date" name="date" required value="{{ form.get('date','') }}"></div>
+      <div><label for="start">Start</label><select id="start" name="start">{% for m in range(12,46) %}{% set hh='%02d:%02d'|format(m//2, (m%2)*30) %}<option {{ 'selected' if (form.get('start') or '10:00')==hh }}>{{ hh }}</option>{% endfor %}</select></div>
+      <div><label for="hours">Duration</label><select id="hours" name="hours">{% for i in range(1, ((r.max_hours*2)|int)+1) %}<option value="{{ i/2 }}" {{ 'selected' if (form.get('hours') or '2')|float==i/2 }}>{{ i/2 }} h</option>{% endfor %}</select></div>
+    </div>
+    <label for="purpose_type">Purpose category</label>
+    <select id="purpose_type" name="purpose_type">{% for k,v in PURPOSE_TYPES.items() %}<option value="{{ k }}" {{ 'selected' if form.get('purpose_type')==k }}>{{ v[0] }}</option>{% endfor %}</select>
+    <div class="hint">Used transparently in the fair-use priority score when requests compete.</div>
+    <label for="purpose">What will you do? (shown to the reviewer)</label>
+    <textarea id="purpose" name="purpose" placeholder="e.g. Cutting 6 acrylic panels for my embedded systems demo">{{ form.get('purpose','') }}</textarea>
+    <div class="row" style="margin-top:12px"><button class="btn sec" name="action" value="check" type="submit">Check eligibility &amp; slot (dry run)</button><button class="btn" name="action" value="submit" type="submit">Submit request</button></div>
+  </form>
+  {% if check %}
+    <div class="box {{ 'err' if check.outcome=='blocked' else 'ok' if check.outcome=='approved' else '' }}" role="status"><b>Result:</b> {{ outcome_text[check.outcome] }}</div>
+    {{ checklist(check.checks) }}
+  {% endif %}
+  </div>
+  {% endif %}
+  {% if mine %}<div class="card"><h2 style="margin-top:0">Your bookings here</h2>
+    {% for b in mine %}<div class="row between"><a href="{{ url_for('booking', bid=b.id) }}">#{{ b.id }} · {{ b.start_ts|dt }}</a>{{ badge(b.status) }}</div>{% endfor %}</div>{% endif %}
+  {% if manage and (me.id==r.owner_id or me.role=='admin') %}
+  <div class="card"><h2 style="margin-top:0">Managers</h2>
+    <p class="small muted">Managers can review requests, confirm returns and resolve incidents for this resource. The owner stays in control.</p>
+    <ul>{% for m in mgrs %}<li>{{ m.name }} <form method="post" action="{{ url_for('resource_managers', rid=r.id) }}" style="display:inline">{{ csrf_field() }}<button class="btn sm sec" name="remove" value="{{ m.id }}">Remove</button></form></li>{% else %}<li class="muted">None yet</li>{% endfor %}</ul>
+    <form method="post" action="{{ url_for('resource_managers', rid=r.id) }}">{{ csrf_field() }}<label for="mgr">Add manager by email</label><input id="mgr" name="email" type="email" placeholder="manager@dit.demo"><p><button class="btn sm">Add</button></p></form>
+  </div>{% endif %}
+</div>
+</div>
+{% endblock %}

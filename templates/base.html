@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}ShareLab{% endblock %} · ShareLab</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="in">
+  <a class="brand" href="{{ url_for('home') }}">Share<span>Lab</span></a>
+  <nav class="main" aria-label="Main">
+    <a href="{{ url_for('resources') }}" class="{{ 'on' if request.endpoint in ('resources','resource') }}">Browse resources</a>
+    {% if me %}
+      <a href="{{ url_for('dashboard') }}" class="{{ 'on' if request.endpoint=='dashboard' }}">My bookings</a>
+      {% if me.role in ('owner','manager','admin') %}
+        <a href="{{ url_for('manage') }}" class="{{ 'on' if request.endpoint=='manage' }}">Review queue</a>
+        <a href="{{ url_for('credentials_review') }}">Verify credentials</a>
+      {% endif %}
+      <a href="{{ url_for('credentials') }}">My credentials</a>
+      <a href="{{ url_for('incidents') }}">Incidents</a>
+      <a href="{{ url_for('audit') }}">Activity log</a>
+      {% if me.role=='admin' %}<a href="{{ url_for('admin') }}">Admin</a>{% endif %}
+    {% endif %}
+    <a href="{{ url_for('about') }}">How it works</a>
+  </nav>
+  {% if me %}
+    <a href="{{ url_for('notifications') }}" aria-label="Notifications, {{ unread }} unread">🔔 {% if unread %}<span class="pill">{{ unread }}</span>{% endif %}</a>
+    <span class="small">{{ me.name }} · <b>{{ me.role }}</b></span>
+    <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="link" type="submit">Sign out</button></form>
+  {% else %}
+    <a href="{{ url_for('login') }}">Sign in</a><a class="btn sm" href="{{ url_for('register') }}">Register</a>
+  {% endif %}
+</div></header>
+<main id="main">
+  <div aria-live="polite">{% for cat, m in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}</div>
+  {% block body %}{% endblock %}
+</main>
+{% if demo and me %}
+<details class="demo"><summary>Demo tools</summary>
+  <div>App time: <code>{{ now_ts.replace('T',' ') }}</code>{% if clock_offset %} (shifted {{ clock_offset }} min){% endif %}</div>
+  <div class="muted" style="color:#b8c7dc">Real systems use the real clock. This lets you skip ahead to check-in, overdue and no-show moments without waiting.</div>
+  <form method="post" action="{{ url_for('admin_clock') }}"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.path }}">
+    <button class="btn sec" name="minutes" value="60">+1 hour</button>
+    <button class="btn sec" name="minutes" value="1440">+1 day</button>
+    <button class="btn sec" name="act" value="reset">Reset</button></form>
+</details>
+{% endif %}
+</body></html>

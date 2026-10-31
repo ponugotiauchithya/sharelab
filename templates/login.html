@@ -1,0 +1,18 @@
+{% extends 'base.html' %}{% block title %}Sign in{% endblock %}
+{% from '_m.html' import csrf_field with context %}
+{% block body %}
+<div class="grid g2">
+<div class="card"><h1>Sign in</h1>
+<form method="post">{{ csrf_field() }}<input type="hidden" name="next" value="{{ next }}">
+<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+<p><button class="btn" type="submit">Sign in</button> <a href="{{ url_for('register') }}">Create an account</a></p></form></div>
+{% if demo_users %}
+<div class="card"><h2 style="margin-top:0">Judge / demo accounts</h2>
+<p class="small muted">All fictional. Password for every account: <code>Demo@123</code>. Use the buttons for a one-click sign-in.</p>
+<table><thead><tr><th>Person</th><th>Role</th><th></th></tr></thead><tbody>
+{% for u in demo_users %}<tr><td><b>{{ u.name }}</b><br><span class="small muted">{{ u.email }} · {{ u.department }}</span></td><td>{{ u.role }}</td>
+<td><form method="post" action="{{ url_for('demo_login', uid=u.id) }}">{{ csrf_field() }}<button class="btn sm sec" type="submit">Sign in</button></form></td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+</div>
+{% endblock %}

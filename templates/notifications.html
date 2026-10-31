@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% block title %}Notifications{% endblock %}
+{% from '_m.html' import csrf_field with context %}
+{% block body %}
+<div class="row between"><h1>Notifications</h1><form method="post">{{ csrf_field() }}<button class="btn sec sm">Mark all read</button></form></div>
+<div class="card"><table><tbody>{% for n in rows %}<tr><td style="width:1%">{{ '' if n.is_read else '●' }}</td><td>{% if n.link %}<a href="{{ n.link }}">{{ n.message }}</a>{% else %}{{ n.message }}{% endif %}</td><td class="small muted right">{{ n.ts|dt }}</td></tr>{% else %}<tr><td class="muted">Nothing yet. Approvals, reminders, cancellations and overdue alerts appear here.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

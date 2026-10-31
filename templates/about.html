@@ -1,0 +1,27 @@
+{% extends 'base.html' %}{% block title %}How it works{% endblock %}
+{% block body %}
+<h1>How ShareLab works</h1>
+<div class="card"><ol>
+<li><b>List</b> - a verified owner lists a resource with opening hours, required qualifications, usage rules and fair-use limits.</li>
+<li><b>Discover</b> - users search in plain words or filter by time; each card shows whether they are already eligible.</li>
+<li><b>Request</b> - a dry-run shows exactly which checks pass or fail before submitting.</li>
+<li><b>Verify</b> - the system checks identity, qualifications, opening hours, session length, weekly cap and clashes automatically.</li>
+<li><b>Decide</b> - the owner/manager approves, rejects or waitlists, always with a reason. Owners can opt a resource into auto-approval.</li>
+<li><b>Check in</b> - the user acknowledges the rules and records the condition they found.</li>
+<li><b>Return</b> - final condition is recorded; staff confirm the return.</li>
+<li><b>Handle problems</b> - delays, damage and no-shows raise incidents that a human reviews; users can respond and dispute.</li>
+<li><b>History</b> - both parties see the full audit trail of the transaction.</li></ol></div>
+<h2>Fair-allocation rules (published)</h2>
+<div class="card"><ul>
+<li><b>Hard limits</b>: weekly hours cap per person per resource, max open bookings, max session length, max waiting-list places.</li>
+<li><b>Priority score</b> when requests compete: base 50, +purpose (coursework +15, research +12, project +8, personal +3), -2 per hour used on this resource in the last 30 days (max -30), +8 for first-time users, -10 per penalty point, +1 per hour waited (max +10).</li>
+<li>The score is a <b>recommendation</b>. A manager may choose differently but must write a justification, shown to those affected and logged.</li>
+<li>Waiting lists are ordered by this same score and promoted automatically to review when a slot opens.</li>
+<li>No automatic penalties: delays, damage and no-shows only create incidents. Penalty points come from a human decision and can be disputed.</li></ul></div>
+<h2>Privacy and security</h2>
+<div class="card"><ul>
+<li>Managers see name, department, purpose and credential status - not personal contact details or full ID numbers.</li>
+<li>Credential documents are visible only to their owner and the staff reviewing that qualification.</li>
+<li>Passwords are hashed; forms are CSRF-protected; every page enforces role-based access.</li>
+<li>The activity log is hash-chained so tampering is detectable.</li></ul></div>
+{% endblock %}

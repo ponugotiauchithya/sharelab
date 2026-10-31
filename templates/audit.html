@@ -1,0 +1,10 @@
+{% extends 'base.html' %}{% block title %}Activity log{% endblock %}
+{% block body %}
+<h1>Activity history</h1>
+<p class="muted">{{ scope }}. Every approval, rejection, cancellation, extension, check-in, return and incident is recorded, and cannot be edited from the app.</p>
+{% if chain %}<div class="box {{ 'ok' if chain[0] else 'err' }}">{% if chain[0] %}✔ Tamper check passed: each entry's cryptographic hash links to the one before it.{% else %}✘ Chain broken at entry #{{ chain[1] }} - records were altered outside the app.{% endif %}</div>{% endif %}
+<div class="card"><table><thead><tr><th>When</th><th>Who</th><th>What</th><th>Resource</th><th>Details</th></tr></thead><tbody>
+{% for a in rows %}<tr><td class="small">{{ a.ts|dt }}</td><td>{{ a.actor_name }}</td><td><b>{{ ACTION_LABELS.get(a.action, a.action) }}</b></td>
+<td class="small">{{ a.rname or '' }}{% if a.booking_id %}<br><a href="{{ url_for('booking', bid=a.booking_id) }}">booking #{{ a.booking_id }}</a>{% endif %}</td><td class="small">{{ a.detail }}</td></tr>{% else %}<tr><td colspan="5" class="muted">No activity yet.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

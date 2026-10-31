@@ -1,0 +1,34 @@
+{% extends 'base.html' %}{% block title %}My bookings{% endblock %}
+{% from '_m.html' import badge, csrf_field with context %}
+{% block body %}
+<h1>Hello, {{ me.name.split()[0] }}</h1>
+{% if not me.verified %}<div class="box warn"><b>Identity not verified yet.</b> An administrator must verify your college ID before you can {{ 'list resources or ' if me.role=='owner' }}book. You can still browse and submit credentials.</div>{% endif %}
+{% if me.penalty_points %}<div class="box {{ 'err' if me.penalty_points>=6 else 'warn' }}">You have <b>{{ me.penalty_points }}</b> incident penalty point(s). From 3 points, instant approval is switched off for you; at 6, new requests are blocked until an administrator reviews them. Points come only from incidents a human reviewed, and you can dispute them on the incident page.</div>{% endif %}
+{% if mgr %}<div class="card"><h2 style="margin-top:0">Needs your attention</h2><div class="row">
+  <a class="btn sec" href="{{ url_for('manage') }}">{{ mgr.pending }} request(s) to review</a>
+  <a class="btn sec" href="{{ url_for('manage') }}">{{ mgr.returns }} return(s) to confirm</a>
+  <a class="btn sec" href="{{ url_for('manage') }}">{{ mgr.ext }} extension(s)</a>
+  <a class="btn sec" href="{{ url_for('manage') }}">{{ mgr.overdue }} overdue</a>
+  <a class="btn sec" href="{{ url_for('incidents') }}">{{ mgr.incidents }} open incident(s)</a>
+  {% if me.role in ('owner','admin') %}<a class="btn" href="{{ url_for('resource_new') }}">+ List a resource</a>{% endif %}</div></div>{% endif %}
+<div class="grid g2">
+<div>
+<h2 style="margin-top:0">Active &amp; upcoming</h2>
+{% for b in active %}<a class="card" href="{{ url_for('booking', bid=b.id) }}" style="display:block;text-decoration:none;color:inherit">
+  <div class="row between"><b>{{ b.emoji }} {{ b.rname }}</b>{{ badge(b.status) }}</div>
+  <div class="small muted">#{{ b.id }} · {{ b.start_ts|dt }} → {{ b.end_ts[11:] }}</div>
+  {% if b.status=='checked_in' and b.end_ts < now_ts %}<div class="small" style="color:var(--err)"><b>Overdue - please return it</b></div>{% endif %}
+</a>{% else %}<div class="card muted">Nothing booked. <a href="{{ url_for('resources') }}">Browse resources</a></div>{% endfor %}
+<h2>History</h2>
+<div class="card"><table><tbody>{% for b in history %}<tr><td><a href="{{ url_for('booking', bid=b.id) }}">#{{ b.id }}</a></td><td>{{ b.rname }}<br><span class="small muted">{{ b.start_ts|dt }}</span></td><td>{{ badge(b.status) }}</td></tr>{% else %}<tr><td class="muted">No past bookings yet.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<div>
+<h2 style="margin-top:0">My fair-use this week</h2>
+<div class="card">{% for u in usage %}<div class="row between small"><a href="{{ url_for('resource', rid=u.id) }}">{{ u.name }}</a><span>{{ u.hrs|num }} / {{ u.cap|num }} h</span></div>
+  <div class="meter {{ 'full' if u.hrs>=u.cap }}"><i style="width:{{ [100,(u.hrs/u.cap*100)|round]|min }}%"></i></div><br>{% else %}<span class="muted">No bookings yet this week.</span>{% endfor %}</div>
+<h2>My credentials</h2>
+<div class="card">{% for c in creds %}<div class="row between small"><span>{{ c.name }}</span><span class="badge b-{{ 'ok' if c.status=='approved' else 'bad' if c.status=='rejected' else 'pending' }}">{{ c.status }}</span></div>{% else %}<span class="muted">None submitted.</span>{% endfor %}
+<p><a href="{{ url_for('credentials') }}">Manage credentials</a></p></div>
+{% if owned %}<h2>My listings</h2><div class="card">{% for r in owned %}<div><a href="{{ url_for('resource', rid=r.id) }}">{{ r.emoji }} {{ r.name }}</a> {% if not r.active %}<span class="badge b-neutral">paused</span>{% endif %}</div>{% endfor %}</div>{% endif %}
+</div></div>
+{% endblock %}

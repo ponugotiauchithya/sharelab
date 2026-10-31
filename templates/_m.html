@@ -1,0 +1,5 @@
+{% macro badge(s) %}<span class="badge b-{{ s }}">{{ {'pending':'Awaiting review','approved':'Approved','rejected':'Rejected','waitlisted':'Waiting list','cancelled':'Cancelled','checked_in':'In use','returned':'Returned - awaiting confirmation','completed':'Completed','no_show':'No-show','open':'Open','resolved':'Resolved','dismissed':'Dismissed','disputed':'Disputed','low':'Low','medium':'Medium','high':'High'}.get(s, s) }}</span>{% endmacro %}
+{% macro csrf_field() %}<input type="hidden" name="_csrf" value="{{ csrf }}">{% endmacro %}
+{% macro checklist(checks) %}
+<ul class="checks">{% for c in checks %}<li><span class="ic {{ 'good' if c.ok else 'bad' }}" aria-hidden="true">{{ '✔' if c.ok else '✘' }}</span><span><b>{{ c.label }}</b> <span class="visually-hidden">({{ 'passed' if c.ok else 'failed' }})</span><br><span class="small {{ 'muted' if c.ok else '' }}">{{ c.detail }}</span></span></li>{% endfor %}</ul>
+{% endmacro %}

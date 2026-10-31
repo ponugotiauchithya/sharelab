@@ -1,0 +1,14 @@
+{% extends 'base.html' %}{% block title %}Register{% endblock %}
+{% from '_m.html' import csrf_field with context %}
+{% block body %}
+<div class="card" style="max-width:560px"><h1>Create your account</h1>
+<p class="muted small">Your college ID is checked by an administrator before you can book. We collect only what is needed to decide access and keep an accountable record.</p>
+<form method="post">{{ csrf_field() }}
+<label for="name">Full name</label><input id="name" name="name" required>
+<label for="email">Email</label><input id="email" name="email" type="email" required>
+<label for="department">Department</label><input id="department" name="department">
+<label for="college_id">College / staff ID</label><input id="college_id" name="college_id" required>
+<label for="password">Password (min 8 characters)</label><input id="password" name="password" type="password" minlength="8" required autocomplete="new-password">
+<label class="chk"><input type="checkbox" name="want_owner" value="1"> I own or run equipment/spaces and want to list them (requires admin verification)</label>
+<p><button class="btn" type="submit">Create account</button></p></form></div>
+{% endblock %}

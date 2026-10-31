@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% block title %}Incidents{% endblock %}
+{% from '_m.html' import badge with context %}
+{% block body %}
+<h1>Incidents</h1>
+<p class="muted">Damage, delays, no-shows and conflicts. The system raises incidents automatically but never penalises anyone on its own - a person reviews each one.</p>
+<div class="card"><table><thead><tr><th>#</th><th>Resource</th><th>Type</th><th>Severity</th><th>Status</th><th>Source</th><th>Summary</th></tr></thead><tbody>
+{% for i in rows %}<tr><td><a href="{{ url_for('incident', iid=i.id) }}">#{{ i.id }}</a></td><td>{{ i.rname }}</td><td>{{ i.kind }}</td><td>{{ badge(i.severity) }}</td><td>{{ badge(i.status) }}</td><td>{{ i.source }}</td><td class="small">{{ i.description[:100] }}</td></tr>{% else %}<tr><td colspan="7" class="muted">No incidents.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

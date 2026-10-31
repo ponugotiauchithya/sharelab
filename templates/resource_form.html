@@ -1,0 +1,37 @@
+{% extends 'base.html' %}{% block title %}{{ 'Edit' if r else 'List a resource' }}{% endblock %}
+{% from '_m.html' import csrf_field with context %}
+{% block body %}
+{% set v = (r or {}) %}
+<h1>{{ 'Edit conditions' if r else 'List a new resource' }}</h1>
+<form method="post" class="card">{{ csrf_field() }}
+<div class="grid g2">
+  <div><label for="name">Name</label><input id="name" name="name" required value="{{ f.get('name') or (r.name if r else '') }}"></div>
+  <div><label for="category">Category</label><input id="category" name="category" list="cats" value="{{ f.get('category') or (r.category if r else '') }}" required>
+    <datalist id="cats"><option>Fabrication</option><option>Electronics</option><option>Compute</option><option>Media</option><option>Spaces</option><option>Testing</option></datalist></div>
+  <div><label for="location">Location</label><input id="location" name="location" required value="{{ f.get('location') or (r.location if r else '') }}"></div>
+  <div><label for="emoji">Icon (emoji)</label><input id="emoji" name="emoji" maxlength="4" value="{{ f.get('emoji') or (r.emoji if r else '🔧') }}"></div>
+</div>
+<label for="description">Description</label><textarea id="description" name="description">{{ f.get('description') or (r.description if r else '') }}</textarea>
+<label for="rules">Usage rules shown to users (they must acknowledge these at check-in)</label><textarea id="rules" name="rules">{{ f.get('rules') or (r.rules if r else '') }}</textarea>
+<label for="tags">Search tags (space separated)</label><input id="tags" name="tags" value="{{ f.get('tags') or (r.tags if r else '') }}">
+<h2>Who may use it</h2>
+<fieldset style="border:1px solid var(--line);border-radius:8px"><legend>Required qualifications</legend>
+{% for qq in quals %}<label class="chk"><input type="checkbox" name="quals" value="{{ qq }}" {{ 'checked' if qq in sel }}> {{ qq }}</label>{% endfor %}
+<label for="extra_qual">Another requirement (optional)</label><input id="extra_qual" name="extra_qual" placeholder="e.g. Biosafety Level 1 Training"></fieldset>
+<h2>Approval &amp; fairness</h2>
+<div class="grid g4">
+<div><label for="approval_mode">Approval</label><select id="approval_mode" name="approval_mode"><option value="manual" {{ 'selected' if not r or r.approval_mode=='manual' }}>Manager reviews each request</option><option value="auto" {{ 'selected' if r and r.approval_mode=='auto' }}>Auto-approve eligible requests</option></select></div>
+<div><label for="max_hours">Max hours per session</label><input id="max_hours" name="max_hours" type="number" step="0.5" min="0.5" value="{{ r.max_hours if r else 3 }}"></div>
+<div><label for="weekly_cap_hours">Weekly cap per person (h)</label><input id="weekly_cap_hours" name="weekly_cap_hours" type="number" step="0.5" min="0.5" value="{{ r.weekly_cap_hours if r else 6 }}"></div>
+<div><label for="max_open">Max open bookings per person</label><input id="max_open" name="max_open" type="number" min="1" value="{{ r.max_open if r else 2 }}"></div>
+<div><label for="advance_days">Bookable days ahead</label><input id="advance_days" name="advance_days" type="number" min="1" value="{{ r.advance_days if r else 14 }}"></div>
+</div>
+<label class="chk"><input type="checkbox" name="supervision" value="1" {{ 'checked' if r and r.supervision }}> Staff supervision required (disables auto-approval)</label>
+<h2>Availability windows</h2>
+<table><thead><tr><th>Open</th><th>Day</th><th>From (hour)</th><th>To (hour)</th></tr></thead><tbody>
+{% for d in range(7) %}{% set w = windows.get(d) %}<tr><td><input type="checkbox" name="open_{{ d }}" value="1" aria-label="Open on {{ DAYS[d] }}" {{ 'checked' if w or (not r and d<5) }}></td><td>{{ DAYS[d] }}</td>
+<td><input type="number" name="from_{{ d }}" min="0" max="23" value="{{ w.start_hour if w else 9 }}" aria-label="{{ DAYS[d] }} opens at hour"></td><td><input type="number" name="to_{{ d }}" min="1" max="24" value="{{ w.end_hour if w else 17 }}" aria-label="{{ DAYS[d] }} closes at hour"></td></tr>{% endfor %}
+</tbody></table>
+<p><button class="btn" type="submit">{{ 'Save changes' if r else 'List resource' }}</button></p>
+</form>
+{% endblock %}

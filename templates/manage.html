@@ -1,0 +1,46 @@
+{% extends 'base.html' %}{% block title %}Review queue{% endblock %}
+{% from '_m.html' import badge, csrf_field, checklist with context %}
+{% block body %}
+<div class="row between"><h1>Review queue</h1>{% if me.role in ('owner','admin') %}<a class="btn" href="{{ url_for('resource_new') }}">+ List a resource</a>{% endif %}</div>
+<div class="row"><span class="badge b-pending">{{ counts.pending }} to review</span><span class="badge b-info">{{ counts.returns }} returns</span><span class="badge b-info">{{ counts.ext }} extensions</span><span class="badge b-bad">{{ counts.overdue }} overdue</span><span class="badge b-info">{{ counts.incidents }} incidents</span></div>
+
+<h2>Booking requests awaiting your decision</h2>
+{% for c in cards %}{% set b = c.b %}
+<div class="card">
+  <div class="row between top"><div><b>{{ b.emoji }} {{ b.rname }}</b> · {{ b.start_ts|dt }} → {{ b.end_ts[11:] }}<br>
+    <span>{{ b.uname }}</span> <span class="muted small">· {{ b.department }} · ID ending {{ b.college_id[-4:] if b.college_id else '-' }} · {{ b.penalty_points }} penalty pt</span><br>
+    <span class="small"><b>{{ PURPOSE_TYPES.get(b.purpose_type, ('',0))[0] }}:</b> {{ b.purpose }}</span></div>
+    <div class="right"><div class="muted small">Priority score</div><div class="score" style="font-size:1.6rem">{{ c.score }}</div></div></div>
+  <div class="grid g2" style="margin-top:8px">
+    <div><details><summary>Automatic checks ({{ c.checks|selectattr('ok')|list|length }}/{{ c.checks|length }} pass)</summary>{{ checklist(c.checks) }}</details>
+      <details><summary>Why this score?</summary><table><tbody>{% for l, v in c.parts %}<tr><td class="small">{{ l }}</td><td class="right score">{{ '%+d'|format(v) if not loop.first else v }}</td></tr>{% endfor %}</tbody></table></details></div>
+    <div>{% if c.comp %}<div class="box warn"><b>{{ c.comp|length }} competing request(s) for this time</b><br>{% for x in c.comp %}<a href="{{ url_for('booking', bid=x.b.id) }}">#{{ x.b.id }} {{ x.uname }}</a> - score <b>{{ x.score }}</b> ({{ x.b.status }})<br>{% endfor %}<span class="small">Approving a lower score needs a written justification.</span></div>{% endif %}
+    {% if c.holders %}<div class="box err">Slot already held by approved booking #{{ c.holders[0].id }}. Approving is blocked until it is cancelled.</div>{% endif %}</div>
+  </div>
+  <form method="post" action="{{ url_for('booking_decide', bid=b.id) }}" class="row" style="margin-top:8px">{{ csrf_field() }}<input type="hidden" name="next" value="{{ url_for('manage') }}">
+    <input name="reason" placeholder="Reason / justification" style="flex:1;min-width:220px" aria-label="Reason for decision">
+    <button class="btn ok sm" name="action" value="approve">Approve</button><button class="btn sec sm" name="action" value="waitlist">Waitlist</button><button class="btn danger sm" name="action" value="reject">Reject</button>
+    <a class="btn sec sm" href="{{ url_for('booking', bid=b.id) }}">Open</a></form>
+</div>
+{% else %}<div class="card muted">No requests waiting. 🎉</div>{% endfor %}
+
+<h2>Returns to confirm</h2>
+{% for b in returns %}<div class="card"><div class="row between"><div><b>{{ b.rname }}</b> · {{ b.uname }} · returned {{ b.return_at|dt }}<br><span class="small">Condition: {{ b.checkin_condition }} → <b>{{ b.return_condition }}</b>{% if b.late_minutes %} · {{ b.late_minutes }} min late{% endif %}. {{ b.return_notes }}</span></div>
+<form method="post" action="{{ url_for('booking_confirm', bid=b.id) }}" class="row">{{ csrf_field() }}<input type="hidden" name="next" value="{{ url_for('manage') }}"><input name="note" placeholder="Inspection note" aria-label="Inspection note"><button class="btn ok sm">Confirm return</button><a class="btn sec sm" href="{{ url_for('booking', bid=b.id) }}">Open</a></form></div></div>{% else %}<div class="card muted">No returns waiting.</div>{% endfor %}
+
+<h2>Extension requests</h2>
+{% for b in exts %}<div class="card"><div class="row between"><div><b>{{ b.rname }}</b> · {{ b.uname }} wants until <b>{{ b.ext_end_ts|dt }}</b><br><span class="small">{{ b.ext_reason }}</span></div>
+<form method="post" action="{{ url_for('booking_ext_decide', bid=b.id) }}" class="row">{{ csrf_field() }}<input type="hidden" name="next" value="{{ url_for('manage') }}"><input name="note" placeholder="Note (needed to deny)" aria-label="Note"><button class="btn ok sm" name="decision" value="approve">Approve</button><button class="btn danger sm" name="decision" value="deny">Deny</button></form></div></div>{% else %}<div class="card muted">None.</div>{% endfor %}
+
+<h2>In use right now</h2>
+<div class="card"><table><tbody>{% for b in active %}<tr><td><a href="{{ url_for('booking', bid=b.id) }}">#{{ b.id }}</a> {{ b.rname }}</td><td>{{ b.uname }}</td><td>until {{ b.end_ts|dt }}</td><td>{% if b.end_ts < now_ts %}<span class="badge b-bad">OVERDUE</span>{% else %}<span class="badge b-info">in use</span>{% endif %}</td></tr>{% else %}<tr><td class="muted">Nothing checked out.</td></tr>{% endfor %}</tbody></table></div>
+
+<h2>Upcoming approved</h2>
+<div class="card"><table><tbody>{% for b in upcoming %}<tr><td><a href="{{ url_for('booking', bid=b.id) }}">#{{ b.id }}</a> {{ b.rname }}</td><td>{{ b.uname }}</td><td>{{ b.start_ts|dt }}</td></tr>{% else %}<tr><td class="muted">None.</td></tr>{% endfor %}</tbody></table></div>
+
+<h2>Waiting lists</h2>
+<div class="card"><table><tbody>{% for b in waitlist %}<tr><td><a href="{{ url_for('booking', bid=b.id) }}">#{{ b.id }}</a> {{ b.rname }}</td><td>{{ b.uname }}</td><td>{{ b.start_ts|dt }}</td></tr>{% else %}<tr><td class="muted">None.</td></tr>{% endfor %}</tbody></table></div>
+
+<h2>Open incidents</h2>
+<div class="card"><table><tbody>{% for i in incidents %}<tr><td><a href="{{ url_for('incident', iid=i.id) }}">#{{ i.id }}</a> {{ i.kind }} · {{ i.rname }}</td><td>{{ badge(i.severity) }}</td><td>{{ badge(i.status) }}</td><td class="small">{{ i.description[:90] }}</td></tr>{% else %}<tr><td class="muted">None.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

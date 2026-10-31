@@ -1,0 +1,123 @@
+{% extends 'base.html' %}{% block title %}Booking #{{ b.id }}{% endblock %}
+{% from '_m.html' import badge, csrf_field, checklist with context %}
+{% block body %}
+<div class="row between top">
+  <div><h1 style="margin-bottom:0">Booking #{{ b.id }} · <a href="{{ url_for('resource', rid=r.id) }}">{{ r.emoji }} {{ r.name }}</a></h1>
+  <div class="muted">{{ b.start_ts|dt }} → {{ b.end_ts[11:] }} · 📍 {{ r.location }}</div></div>
+  <div class="row">{{ badge(b.status) }}{% if is_late %}<span class="badge b-bad">OVERDUE</span>{% endif %}<a class="btn sec sm" href="{{ url_for('booking_record', bid=b.id) }}">Download record (JSON)</a><button class="btn sec sm" onclick="window.print()">Print</button></div>
+</div>
+
+{% if b.decision_reason %}<div class="box {{ 'err' if b.status in ('rejected','cancelled') else 'ok' if b.status in ('approved','completed') else '' }}"><b>Why this status?</b><br>{{ b.decision_reason }}{% if b.auto_decided %} <span class="tag">automatic rule</span>{% elif b.decision_by %} <span class="tag">human decision</span>{% endif %}</div>{% endif %}
+{% if b.status=='waitlisted' and rank %}<div class="box">You are <b>#{{ rank }}</b> in the queue for this slot (ordered by the published priority score below).</div>{% endif %}
+{% if b.status=='pending' and is_mine %}<div class="box">A manager will review this request. You will get a notification with the decision and the reason.</div>{% endif %}
+
+<div class="grid g2">
+<div>
+  <div class="card"><h2 style="margin-top:0">Request</h2>
+    <table><tbody>
+    <tr><th>Requested by</th><td>{{ requester.name }} · {{ requester.department }}{% if owner_view %}<br><span class="small muted">ID ending {{ requester.college_id[-4:] if requester.college_id else '-' }} · {{ requester.penalty_points }} penalty point(s)</span>{% endif %}</td></tr>
+    <tr><th>Purpose</th><td>{{ PURPOSE_TYPES.get(b.purpose_type, ('',0))[0] }}: {{ b.purpose }}</td></tr>
+    <tr><th>Submitted</th><td>{{ b.created_at|dt }}</td></tr>
+    {% if b.orig_end_ts %}<tr><th>Extended</th><td>Original end {{ b.orig_end_ts[11:] }} → {{ b.end_ts[11:] }}</td></tr>{% endif %}
+    </tbody></table>
+  </div>
+  {% if checks %}<div class="card"><h2 style="margin-top:0">Automatic checks at submission</h2>{{ checklist(checks) }}</div>{% endif %}
+  <div class="card"><h2 style="margin-top:0">Fair-use priority score: <span class="score">{{ score }}</span></h2>
+    <p class="small muted">Used only to order competing requests. Humans make the final decision.</p>
+    <table><tbody>{% for label, v in parts %}<tr><td class="small">{{ label }}</td><td class="right score">{{ '%+d'|format(v) if not loop.first else v }}</td></tr>{% endfor %}</tbody></table>
+    {% if comp %}<h3>Competing requests for overlapping time</h3><table><tbody>{% for c in comp %}<tr><td><a href="{{ url_for('booking', bid=c.b.id) }}">#{{ c.b.id }}</a> {{ c.b.start_ts|dt }}</td><td>{{ badge(c.b.status) }}</td><td class="score right">{{ c.score }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+  </div>
+  <div class="card"><h2 style="margin-top:0">Condition record</h2>
+    <table><thead><tr><th></th><th>Check-in</th><th>Return</th></tr></thead><tbody>
+    <tr><th>When</th><td>{{ b.checkin_at|dt }}</td><td>{{ b.return_at|dt }}</td></tr>
+    <tr><th>Condition</th><td>{% if b.checkin_condition %}<span class="badge b-{{ 'ok' if b.checkin_condition in ('excellent','good') else 'bad' }}">{{ b.checkin_condition }}</span>{% else %}-{% endif %}</td><td>{% if b.return_condition %}<span class="badge b-{{ 'ok' if b.return_condition in ('excellent','good') else 'bad' }}">{{ b.return_condition }}</span>{% else %}-{% endif %}</td></tr>
+    <tr><th>Notes</th><td>{{ b.checkin_notes or '-' }}</td><td>{{ b.return_notes or '-' }}</td></tr>
+    {% if b.return_at %}<tr><th>Late by</th><td colspan="2">{{ b.late_minutes }} min</td></tr>{% endif %}
+    {% if b.confirmed_at %}<tr><th>Confirmed</th><td colspan="2">{{ b.confirmed_at|dt }} {{ '- ' ~ b.confirm_note if b.confirm_note }}</td></tr>{% endif %}
+    </tbody></table>
+  </div>
+</div>
+
+<div>
+  {# ---------- manager decision ---------- #}
+  {% if owner_view and b.status in ('pending','waitlisted') %}
+  <div class="card"><h2 style="margin-top:0">Decision</h2>
+    <form method="post" action="{{ url_for('booking_decide', bid=b.id) }}">{{ csrf_field() }}
+      <label for="reason">Reason (required to reject or waitlist; required to approve over a higher-priority request)</label>
+      <textarea id="reason" name="reason"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn ok" name="action" value="approve">Approve</button><button class="btn sec" name="action" value="waitlist">Waitlist</button><button class="btn danger" name="action" value="reject">Reject</button></div>
+    </form></div>
+  {% endif %}
+  {% if owner_view and b.status=='returned' %}
+  <div class="card"><h2 style="margin-top:0">Confirm return</h2><p class="small">Inspect the item and compare with the condition reports on the left.</p>
+    <form method="post" action="{{ url_for('booking_confirm', bid=b.id) }}">{{ csrf_field() }}<label for="note">Inspection note</label><textarea id="note" name="note"></textarea><p><button class="btn ok">Confirm return &amp; complete</button></p></form></div>
+  {% endif %}
+  {# ---------- check in ---------- #}
+  {% if is_mine and b.status=='approved' %}
+  <div class="card"><h2 style="margin-top:0">Check in</h2>
+    {% if can_checkin %}
+    <p>Inspect the resource before you use it and record exactly what you see. This protects you if something was already damaged.</p>
+    <div class="box"><b>Usage rules</b><br>{{ rules_text }}</div>
+    <form method="post" action="{{ url_for('booking_checkin', bid=b.id) }}">{{ csrf_field() }}
+      <label for="cc">Condition when you received it</label><select id="cc" name="condition">{% for c in CONDITIONS %}<option {{ 'selected' if c=='good' }}>{{ c }}</option>{% endfor %}</select>
+      <label for="cn">Notes (scratches, missing parts, anything unusual)</label><textarea id="cn" name="notes"></textarea>
+      <label class="chk"><input type="checkbox" name="ack" value="1" required> I have read and will follow the usage rules above.</label>
+      <button class="btn">Check in</button></form>
+    {% else %}
+    <p>Check-in opens 15 minutes before <b>{{ b.start_ts|dt }}</b>.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  {# ---------- return ---------- #}
+  {% if is_mine and b.status=='checked_in' %}
+  <div class="card"><h2 style="margin-top:0">Return</h2>
+    <form method="post" action="{{ url_for('booking_return', bid=b.id) }}">{{ csrf_field() }}
+      <label for="rc">Condition you are returning it in</label><select id="rc" name="condition">{% for c in CONDITIONS %}<option {{ 'selected' if c==(b.checkin_condition or 'good') }}>{{ c }}</option>{% endfor %}</select>
+      <label for="rn">Notes</label><textarea id="rn" name="notes" placeholder="Anything staff should know?"></textarea>
+      <label class="chk"><input type="checkbox" name="damage" value="1"> I noticed damage or a problem during my session</label>
+      <button class="btn">Return</button></form></div>
+  {% endif %}
+  {# ---------- extension ---------- #}
+  {% if is_mine and b.status in ('approved','checked_in') and b.ext_status!='requested' %}
+  <div class="card"><h2 style="margin-top:0">Need more time?</h2>
+    <form method="post" action="{{ url_for('booking_extend', bid=b.id) }}">{{ csrf_field() }}
+      <div class="grid g2"><div><label for="eh">Extend by</label><select id="eh" name="hours"><option value="0.5">30 min</option><option value="1" selected>1 hour</option><option value="2">2 hours</option></select></div>
+      <div><label for="er">Reason</label><input id="er" name="reason" required></div></div>
+      <p><button class="btn sec">Request extension</button></p></form>
+    {% if b.ext_status=='denied' %}<p class="small">Last request denied: {{ b.ext_note }}</p>{% endif %}</div>
+  {% endif %}
+  {% if b.ext_status=='requested' %}
+  <div class="card"><h2 style="margin-top:0">Extension requested</h2><p>Until <b>{{ b.ext_end_ts|dt }}</b> - {{ b.ext_reason }}</p>
+    {% if owner_view %}<form method="post" action="{{ url_for('booking_ext_decide', bid=b.id) }}">{{ csrf_field() }}<label for="en">Note (required to deny)</label><input id="en" name="note"><div class="row" style="margin-top:8px"><button class="btn ok sm" name="decision" value="approve">Approve</button><button class="btn danger sm" name="decision" value="deny">Deny</button></div></form>
+    {% else %}<p class="small muted">Waiting for a manager's decision.</p>{% endif %}</div>
+  {% endif %}
+  {# ---------- cancel ---------- #}
+  {% if b.status in ('pending','approved','waitlisted') and (is_mine or owner_view) %}
+  <div class="card"><h2 style="margin-top:0">Cancel booking</h2>
+    <form method="post" action="{{ url_for('booking_cancel', bid=b.id) }}">{{ csrf_field() }}<label for="cr">Reason{{ ' (required, shown to the user)' if not is_mine }}</label><input id="cr" name="reason" {{ 'required' if not is_mine }}>
+      {% if is_mine and b.status=='approved' %}<p class="hint">Cancelling inside 2 hours of the start is flagged for staff review. Cancel early so others can use the slot.</p>{% endif %}
+      <p><button class="btn danger sm">Cancel booking</button></p></form></div>
+  {% endif %}
+  {# ---------- incident ---------- #}
+  <div class="card"><details><summary>Report an incident (damage, delay, conflict, safety)</summary>
+    <form method="post" action="{{ url_for('incident_new', bid=b.id) }}">{{ csrf_field() }}
+      <div class="grid g2"><div><label for="ik">Type</label><select id="ik" name="kind"><option value="damage">Damage</option><option value="delay">Delay</option><option value="conflict">Scheduling conflict</option><option value="safety">Safety concern</option><option value="misuse">Misuse</option><option value="other">Other</option></select></div>
+      <div><label for="is">Severity</label><select id="is" name="severity"><option>low</option><option>medium</option><option>high</option></select></div></div>
+      <label for="id">What happened?</label><textarea id="id" name="description" required></textarea>
+      <p><button class="btn sec sm">Record incident</button></p></form></details>
+    {% if incidents %}<h3>Incidents on this booking</h3>{% for i in incidents %}<div class="row between"><a href="{{ url_for('incident', iid=i.id) }}">#{{ i.id }} {{ i.kind }}</a>{{ badge(i.status) }}</div>{% endfor %}{% endif %}</div>
+  {# ---------- demo ---------- #}
+  {% if demo and b.status in ('approved','checked_in') and (is_mine or owner_view) %}
+  <div class="card" style="border-style:dashed"><b>Demo shortcuts</b> <span class="small muted">(simulated clock)</span>
+    <form method="post" action="{{ url_for('admin_clock') }}" class="row" style="margin-top:6px">{{ csrf_field() }}<input type="hidden" name="target" value="{{ b.id }}"><input type="hidden" name="next" value="{{ request.path }}">
+      {% if b.status=='approved' %}<button class="btn sec sm" name="act" value="to_booking">Jump to 5 min before start</button>{% endif %}
+      {% if b.status=='checked_in' %}<button class="btn sec sm" name="act" value="to_end">Jump to booked end time</button>
+      <button class="btn sec sm" name="act" value="to_end" onclick="this.form.extra.value=45">Jump to 45 min after end (overdue)</button><input type="hidden" name="extra" value="0">{% endif %}
+    </form></div>
+  {% endif %}
+</div>
+</div>
+
+<h2>Complete history of this transaction</h2>
+<div class="card"><ul class="timeline">{% for t in timeline %}<li class="{{ 'sys' if t.actor_name=='System' }}"><b>{{ ACTION_LABELS.get(t.action, t.action) }}</b> <span class="muted small">· {{ t.actor_name }} · {{ t.ts|dt }}</span><br><span class="small">{{ t.detail }}</span></li>{% else %}<li class="muted">No events yet.</li>{% endfor %}</ul></div>
+{% endblock %}

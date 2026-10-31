@@ -1,0 +1,26 @@
+{% extends 'base.html' %}{% block title %}Share what sits idle{% endblock %}
+{% block body %}
+<section class="hero">
+  <h1>Unlock the labs, tools and rooms that sit idle.</h1>
+  <p>ShareLab lets a college (or a community) share spaces and equipment <b>safely</b>: owners set the rules, users prove they are qualified, every decision is explained, and every action is recorded.</p>
+  <div class="row" style="margin-top:14px">
+    <a class="btn" style="background:#fff;color:#0d1b2a;border-color:#fff" href="{{ url_for('resources') }}">Browse resources</a>
+    {% if not me %}<a class="btn sec" href="{{ url_for('login') }}">Sign in with a demo account</a>{% endif %}
+    <a class="btn sec" href="{{ url_for('about') }}">How it works</a>
+  </div>
+</section>
+<div class="grid g3">
+  <div class="card"><div class="stat">{{ stats.resources }}</div>resources listed by verified owners</div>
+  <div class="card"><div class="stat">{{ stats.bookings }}</div>completed, fully documented sessions</div>
+  <div class="card"><div class="stat">{{ stats.hours }} h</div>of previously idle time put to use</div>
+</div>
+<h2>Why not just a booking calendar?</h2>
+<div class="grid g4">
+  <div class="card"><b>Trust</b><p class="small">Identity verified, certifications checked against what each resource requires before a request even reaches the owner.</p></div>
+  <div class="card"><b>Fairness</b><p class="small">Weekly caps, open-request limits and an explainable priority score stop one person or team monopolising scarce machines.</p></div>
+  <div class="card"><b>Accountability</b><p class="small">Before/after condition reports, damage and delay incidents, disputes and a tamper-evident activity log.</p></div>
+  <div class="card"><b>Human control</b><p class="small">Owners decide. The system only recommends, auto-approves where the owner allows it, and always explains why.</p></div>
+</div>
+<h2>Featured resources</h2>
+<div class="grid g4">{% for r in feat %}<a class="card rcard" href="{{ url_for('resource', rid=r.id) }}" style="text-decoration:none;color:inherit"><span class="emoji">{{ r.emoji }}</span><h3>{{ r.name }}</h3><span class="muted small">{{ r.location }}</span></a>{% endfor %}</div>
+{% endblock %}

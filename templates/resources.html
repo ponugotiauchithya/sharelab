@@ -1,0 +1,32 @@
+{% extends 'base.html' %}{% block title %}Browse resources{% endblock %}
+{% block body %}
+<h1>Find a resource</h1>
+<form class="card" method="get" role="search">
+<div class="grid g4">
+<div><label for="q">What do you need to do?</label><input id="q" name="q" value="{{ f.get('q','') }}" placeholder="e.g. print a prototype, cut acrylic, train a model"></div>
+<div><label for="category">Category</label><select id="category" name="category"><option value="">All</option>{% for c in cats %}<option {{ 'selected' if f.get('category')==c }}>{{ c }}</option>{% endfor %}</select></div>
+<div><label for="date">Free on (date)</label><input id="date" type="date" name="date" value="{{ f.get('date','') }}"></div>
+<div><label for="time">at</label><input id="time" type="time" step="1800" name="time" value="{{ f.get('time','') }}"></div>
+<div><label for="hours">for (hours)</label><select id="hours" name="hours">{% for h in [0.5,1,2,3,4,6] %}<option value="{{ h }}" {{ 'selected' if f.get('hours')|string==h|string }}>{{ h }}</option>{% endfor %}</select></div>
+</div>
+{% if me %}<label class="chk"><input type="checkbox" name="eligible" value="1" {{ 'checked' if f.get('eligible') }}> Only show resources I am already eligible to book</label>{% endif %}
+<button class="btn" type="submit">Search</button> <a class="btn sec" href="{{ url_for('resources') }}">Clear</a>
+<p class="hint">Matching is rule-based and explainable: words in your description are matched (with synonyms) against each resource's name, tags and description.</p>
+</form>
+<p class="muted">{{ items|length }} resource{{ '' if items|length==1 else 's' }} found.</p>
+<div class="grid g3">
+{% for it in items %}{% set r = it.r %}
+<a class="card rcard" href="{{ url_for('resource', rid=r.id) }}" style="text-decoration:none;color:inherit">
+  <div class="row between"><span class="emoji">{{ r.emoji }}</span>
+  {% if it.eligible is not none %}{% if it.eligible %}<span class="badge b-ok">You are eligible</span>{% else %}<span class="badge b-pending">Missing {{ it.missing|length }} requirement{{ '' if it.missing|length==1 else 's' }}</span>{% endif %}{% endif %}</div>
+  <h3>{{ r.name }}</h3>
+  <span class="muted small">📍 {{ r.location }} · {{ r.category }}</span>
+  <span class="small">{{ r.description[:140] }}{% if r.description|length>140 %}…{% endif %}</span>
+  <div>{% for x in it.reqs %}<span class="tag">{{ x }}</span>{% else %}<span class="tag">No special training needed</span>{% endfor %}</div>
+  <div class="small muted">{% if r.approval_mode=='auto' %}⚡ Instant approval if eligible{% else %}👤 Manager reviews each request{% endif %}{% if r.supervision %} · Staff supervised{% endif %} · max {{ r.max_hours|num }} h</div>
+  {% if it.matched %}<div class="small">Matched your words: <b>{{ it.matched|join(', ') }}</b></div>{% endif %}
+  {% if it.free %}<div class="small" style="color:var(--ok)"><b>Free at your chosen time</b></div>{% endif %}
+</a>
+{% else %}<div class="card">No resources match. Try fewer words or clear the filters.</div>{% endfor %}
+</div>
+{% endblock %}

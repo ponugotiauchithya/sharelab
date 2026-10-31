@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block title %}Admin{% endblock %}
+{% from '_m.html' import csrf_field with context %}
+{% block body %}
+<h1>Administration</h1>
+<div class="box {{ 'ok' if ok_chain[0] else 'err' }}">Audit-log integrity: {{ 'intact ✔' if ok_chain[0] else 'BROKEN at entry #' ~ ok_chain[1] }}</div>
+<div class="card"><h2 style="margin-top:0">Users</h2>
+<table><thead><tr><th>Name</th><th>Role</th><th>College ID</th><th>Status</th><th>Penalty</th><th></th></tr></thead><tbody>
+{% for u in users %}<tr><td><b>{{ u.name }}</b><br><span class="small muted">{{ u.department }}</span></td><td>{{ u.role }}</td><td class="small">{{ u.college_id }}</td>
+<td>{% if u.verified %}<span class="badge b-ok">verified</span>{% else %}<span class="badge b-pending">unverified</span>{% endif %}</td><td>{{ u.penalty_points }}</td>
+<td><form method="post" action="{{ url_for('admin_verify', uid=u.id) }}" class="row">{{ csrf_field() }}
+{% if not u.verified %}<button class="btn ok sm" name="act" value="verify">Verify ID</button>{% endif %}
+{% if u.penalty_points %}<button class="btn sec sm" name="act" value="reset_penalty">Reset penalty</button>{% endif %}</form></td></tr>{% endfor %}
+</tbody></table></div>
+<div class="card"><h2 style="margin-top:0">Demo controls</h2>
+<form method="post" action="{{ url_for('admin_reseed') }}" onsubmit="return confirm('Reset ALL data to the fresh demo state?')">{{ csrf_field() }}<button class="btn danger sm">Reset demo data</button></form>
+<p class="hint">Restores the seeded fictional institution (users, resources, history). Use it before a judging session.</p></div>
+{% endblock %}

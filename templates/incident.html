@@ -1,0 +1,27 @@
+{% extends 'base.html' %}{% block title %}Incident #{{ inc.id }}{% endblock %}
+{% from '_m.html' import badge, csrf_field with context %}
+{% block body %}
+<div class="row between"><h1>Incident #{{ inc.id }} · {{ inc.kind }}</h1><div class="row">{{ badge(inc.severity) }}{{ badge(inc.status) }}</div></div>
+<div class="grid g2">
+<div class="card"><h2 style="margin-top:0">What was reported</h2>
+<p>{{ inc.description }}</p>
+<p class="small muted">Resource: <a href="{{ url_for('resource', rid=r.id) }}">{{ r.name }}</a>{% if inc.booking_id %} · Booking <a href="{{ url_for('booking', bid=inc.booking_id) }}">#{{ inc.booking_id }}</a>{% endif %}<br>
+Raised by: {{ reporter.name if reporter else 'System (automatic flag, needs human review)' }} · {{ inc.created_at|dt }}{% if subject %}<br>Concerns: {{ subject.name }}{% endif %}</p>
+{% if inc.status in ('resolved','dismissed') %}<div class="box {{ 'ok' if inc.status=='dismissed' else 'warn' }}"><b>Outcome ({{ inc.status }}) by {{ resolver.name if resolver else '-' }} on {{ inc.resolved_at|dt }}</b><br>{{ inc.resolution }}{% if inc.penalty_points %}<br><b>{{ inc.penalty_points }} penalty point(s) applied.</b>{% endif %}</div>{% endif %}
+{% if manager and inc.status in ('open','disputed') %}
+<h3>Resolve</h3>
+<form method="post" action="{{ url_for('incident_resolve', iid=inc.id) }}">{{ csrf_field() }}
+<label for="outcome">Outcome and reasoning (both parties will see this)</label><textarea id="outcome" name="outcome" required></textarea>
+<label for="points">Penalty points (0-5; 0 = no penalty)</label><input id="points" type="number" name="points" min="0" max="5" value="0" style="max-width:120px">
+<p class="hint">Points reduce fair-use priority (3 pts: no instant approval; 6 pts: requests blocked until admin review).</p>
+<div class="row"><button class="btn">Resolve</button><button class="btn sec" name="dismiss" value="1">Dismiss (no fault)</button></div></form>
+{% endif %}
+{% if manager and inc.status in ('resolved','dismissed') %}<form method="post" action="{{ url_for('incident_resolve', iid=inc.id) }}">{{ csrf_field() }}<button class="btn sec sm" name="reopen" value="1">Reopen for review</button></form>{% endif %}
+</div>
+<div class="card"><h2 style="margin-top:0">Discussion</h2>
+{% for c in comments %}<div class="box" style="border-color:{{ '#0b5fff' if c.urole!='user' else '#7d8794' }}"><b>{{ c.uname }}</b> <span class="small muted">{{ c.urole }} · {{ c.created_at|dt }}</span><br>{{ c.body }}</div>{% else %}<p class="muted">No comments yet.</p>{% endfor %}
+<form method="post" action="{{ url_for('incident_comment', iid=inc.id) }}">{{ csrf_field() }}<label for="body">Add a comment</label><textarea id="body" name="body" required></textarea>
+{% if is_subject and inc.status in ('open','resolved') %}<label class="chk"><input type="checkbox" name="dispute" value="1"> I dispute this incident / outcome - ask for another review</label>{% endif %}
+<p><button class="btn sec sm">Post</button></p></form></div>
+</div>
+{% endblock %}
