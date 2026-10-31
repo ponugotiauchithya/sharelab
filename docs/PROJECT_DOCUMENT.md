@@ -3,7 +3,6 @@
 **Problem statement:** Unlock Underused Equipment and Spaces
 **One line:** A trusted platform where a college's labs, tools and rooms are shared safely — owners stay in control, users know exactly why they were approved or not, and every action is auditable.
 
-> Fill in the bracketed items (team, links, evidence citations) before submitting.
 
 ## 1. Selected use case
 
@@ -149,11 +148,8 @@ Multi-institution federation with inter-college agreements; SSO / LDAP; email & 
 
 | Name | Role | Contribution |
 |---|---|---|
-| [Name] | [e.g. Backend] | [e.g. rules engine, tests] |
-| [Name] | [e.g. Frontend] | [e.g. UI, accessibility] |
-| [Name] | [e.g. Product/Docs] | [e.g. research, document, demo] |
-
-Submission form: https://forms.gle/QTD1ZRuPX37Yef37A
+| Ponugoti Auchithya |Lead Developer|Backend, database, booking workflows and deployment|
+| Chalamalla Abhiram Reddy |QA & Product Developer |Fair allocation, testing, bug fixing and documentation|
 
 ## 13. Disclosures
 
